@@ -1,11 +1,56 @@
 
 const uuid = require('uuid');
+const fs = require('./fs');
 
 class TodoApplication {
   constructor(params) {
     this.users = {};
     this.items = {};
     this.lists = {};
+  }
+
+  async save() {
+    await fs.write('./todo-data.dat', this.toString()); 
+  }
+
+  static async load() {
+    return TodoApplication.fromString(await fs.read('./todo-data.dat'));
+  }
+
+  toString() {
+    const containers = [this.users, this.items, this.lists];
+
+    const data = containers.map(container => {
+      const entities = Object.values(container);
+      const data = entities.map(entity => entity.toString());
+      return data;
+    });
+
+    return JSON.stringify(data);
+  }
+
+  static fromString(str) {
+    const classes = [TodoUser, TodoListItem, TodoList];
+
+    const data = JSON.parse(str);
+
+    const [users, items, lists] = data.map((container, classIndex) => {
+      const Class = classes[classIndex];
+      const entityList = container.map(entityData => Class.fromString(entityData));
+      const result = {};
+      entityList.forEach(entity => {
+        result[entity.id] = entity;
+      });
+      return result;
+    });
+
+    const app = new TodoApplication();
+
+    app.users = users;
+    app.items = items;
+    app.lists = lists;
+
+    return app;
   }
 
   static create() {
@@ -19,8 +64,7 @@ class TodoApplication {
     return newList;
   }
 
-  createItem(listId, description, thumbnailImage) {
-    const list = this.lists[listId];
+  createItem(list, description, thumbnailImage) {
     const item = TodoListItem.create(list, description, thumbnailImage);
 
     this.items[item.id] = item;
@@ -51,7 +95,8 @@ class TodoApplication {
 
   getItemsByListId(listId) {
     const list = this.lists[listId];
-    return list.getItems();
+    const itemIds = list.getItemIds();
+    return itemIds.map(itemId => this.items[itemId]);
   }
 
   updateItem(itemId, params) {
@@ -61,17 +106,17 @@ class TodoApplication {
 
   removeItem(itemId) {
     const item = this.items[itemId];
-    const list = item.list;
+    const list = this.lists[item.listId];
     
-    delete list.items[itemId];
+    list.removeItem(item);
     delete this.items[itemId];
   }
 
   removeList(listId) {
     const list = this.lists[listId];
 
-    const items = list.getItems();
-    items.forEach(el => this.removeItem(el.id));
+    const itemIds = list.getItemIds();
+    itemIds.forEach(id => this.removeItem(id));
     
     delete this.lists[listId];
   }
@@ -86,13 +131,29 @@ class TodoApplication {
 
 class TodoList {
   constructor(params) {
-    const { id, name, owner, createdAt } = params;
+    const { id, itemIds, name, owner, createdAt } = params;
 
     this.id = id;
-    this.items = {};
+    this.itemIds = itemIds;
     this.name = name;
     this.owner = owner;
     this.createdAt = createdAt
+  }
+
+  toString() {
+    return JSON.stringify({
+      id: this.id,
+      itemIds: this.itemIds,
+      name: this.name,
+      owner: this.owner,
+      createdAt: this.createdAt,
+    });
+  }
+
+  static fromString(str) {
+    const obj = JSON.parse(str);
+
+    return new TodoList(obj);
   }
 
   static create(name, owner) {
@@ -112,27 +173,47 @@ class TodoList {
       id: uuid.v4(),
       name,
       owner,
+      itemIds: [],
       createdAt: Date.now(),
     });
   }
 
   addItem(item) {
-    this.items[item.id] = item;
+    this.itemIds.push(item.id);
   }
 
-  getItems() {
-    return Object.values(this.items);
+  removeItem(item) {
+    this.itemIds = this.itemIds.filter(itemId => itemId !== item.id);
+  }
+
+  getItemIds() {
+    return this.itemIds;
   }
 }
 
 class TodoListItem {
   constructor(params) {
-    const { id, list, description, thumbnailImage } = params;
+    const { id, listId, description, thumbnailImage } = params;
     
     this.id = id;
-    this.list = list
+    this.listId = listId;
     this.description = description;
     this.thumbnailImage = thumbnailImage; // URI for thumbnail image
+  }
+
+  toString() {
+    return JSON.stringify({
+      id: this.id,
+      listId: this.listId,
+      description: this.description,
+      thumbnailImage: this.thumbnailImage,
+    });
+  }
+
+  static fromString(str) {
+    const obj = JSON.parse(str);
+
+    return new TodoListItem(obj);
   }
 
   static create(list, description, thumbnailImage) {
@@ -140,7 +221,7 @@ class TodoListItem {
 
     return new TodoListItem({
       id: uuid.v4(),
-      list,
+      listId: list.id,
       description,
       thumbnailImage,
     });
@@ -188,6 +269,21 @@ class TodoUser {
     this.image = image;
   }
 
+  toString() {
+    return JSON.stringify({
+      id: this.id,
+      username: this.username,
+      password: this.password,
+      image: this.image,
+    });
+  }
+
+  static fromString(str) {
+    const obj = JSON.parse(str);
+    
+    return new TodoUser(obj);
+  }
+
   static create(username, password, image) {
     if (typeof username !== 'string') {
       throw Error('username must be string');
@@ -218,4 +314,9 @@ class TodoUser {
   }
 }
 
-module.exports = TodoApplication;
+module.exports = {
+  TodoApplication,
+  TodoList,
+  TodoListItem,
+  TodoUser,
+};
