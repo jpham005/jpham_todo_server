@@ -2,13 +2,18 @@
 const uuid = require('uuid');
 const fs = require('./fs');
 
+const debug = true;
 class TodoApplication {
   constructor(params) {
     this.users = {};
     this.items = {};
     this.lists = {};
-
-    this.createUser('admin', 'admin', '');
+    
+    if (debug) {
+      this.createUser('admin', 'admin', '');
+      const admin = this.findUser('admin');
+      admin.id = 'fixed_id';
+    }
   }
 
   async save() {
