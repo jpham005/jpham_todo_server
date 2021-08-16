@@ -5,7 +5,8 @@
   "main": "todo.js",
   "scripts": {
     "test": "jest",
-    "test-watch": "jest --watch"
+    "test-watch": "jest --watch",
+    "start": "node net.js"
   },
   "repository": {
     "type": "git",
