@@ -7,6 +7,8 @@ class TodoApplication {
     this.users = {};
     this.items = {};
     this.lists = {};
+
+    this.createUser('admin', 'admin', '');
   }
 
   async save() {
@@ -20,11 +22,11 @@ class TodoApplication {
   toString() {
     const containers = [this.users, this.items, this.lists];
 
-    const data = containers.map(container => {
-      const entities = Object.values(container);
-      const data = entities.map(entity => entity.toString());
-      return data;
-    });
+    const data = containers
+      .map((el) => Object.values(el))
+      .map((entities) =>
+        entities.map((entity) => entity.toString())
+      );
 
     return JSON.stringify(data);
   }
@@ -85,7 +87,7 @@ class TodoApplication {
   }
 
   findUser(username) {
-    return Object.values(this.users).find(el => el === username);
+    return Object.values(this.users).find(el => el.username === username);
   }
 
   getListsByOwnerId(userId) {
@@ -131,12 +133,12 @@ class TodoApplication {
 
 class TodoList {
   constructor(params) {
-    const { id, itemIds, name, owner, createdAt } = params;
+    const { id, itemIds, name, ownerId, createdAt } = params;
 
     this.id = id;
     this.itemIds = itemIds;
     this.name = name;
-    this.owner = owner;
+    this.ownerId = ownerId;
     this.createdAt = createdAt
   }
 
@@ -145,7 +147,7 @@ class TodoList {
       id: this.id,
       itemIds: this.itemIds,
       name: this.name,
-      owner: this.owner,
+      ownerId: this.ownerId,
       createdAt: this.createdAt,
     });
   }
@@ -172,7 +174,7 @@ class TodoList {
     return new TodoList({
       id: uuid.v4(),
       name,
-      owner,
+      ownerId: owner.id,
       itemIds: [],
       createdAt: Date.now(),
     });
