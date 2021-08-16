@@ -57,6 +57,11 @@ class Server {
     response.write(JSON.stringify(obj));
   }
 
+  static createToken(userId) {
+    const hash = Server.hashId(userId);
+    return `${userId}:${hash}`;
+  }
+
   handleLogin(request, response, data) {
     const {username, password} = data;
 
@@ -66,9 +71,8 @@ class Server {
     const user = this.app.findUser(username);
     if (user === undefined) return response.end();
     if (user.password !== password) return response.end();
-
-    const hash = Server.hashId(user.id);
-    const token = `${user.id}:${hash}`;
+    
+    const token = Server.createToken(user.id);
 
     response.write(token);
     response.end();
@@ -88,6 +92,21 @@ class Server {
     if (hash !== Server.hashId(userId)) return null;
 
     return this.app.users[userId];
+  }
+
+  handleCreateUser(request, response, data) {
+    const { username, password, image } = data;
+    
+    if (typeof username !== 'string')
+      return response.write('username is not present');
+    if (typeof password !== 'string')
+      return response.write('password is not present');
+    if (typeof image !== 'string')
+      return response.write('image is not present');
+    
+    const newUser = this.app.createUser(username, password, image);
+
+    this.writeJson(response, newUser);
   }
   
   handleCreateList(request, response, data, user) {
@@ -123,11 +142,4 @@ class Server {
   }
 }
 
-function main() {
-  const server = new Server();
-  const port = Number(process.env.PORT || 8300);
-  console.log(`Server started on PORT ${port}`);
-  server.listen(port);
-}
-
-main();
+module.exports = Server;
